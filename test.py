@@ -76,11 +76,14 @@ cmd_data = []   #送信する本データ
 
 for y in range (img_mono.height):   #vert
     for x in range(width_byte): # line
-        tmp_byte = 0
+
+        #1ピクセル=1bitとして、8ピクセル->1バイトにまとめていく
+        tmp_byte = 0    
         for bit in range (8) :            #bit
             tmp_byte = tmp_byte << 1
-            if img_mono.getpixel( (( (width_byte - 1 -x) * 8 + (7 - bit)) , img_mono.height-y-1)) == 0:  #x,yのピクセル値を取得(モノクロイメージなのでbit)
-                tmp_byte |= 0x01                                                                         #0の場合はそのピクセルのビットを立てる
+            if img_mono.getpixel( (( (width_byte - 1 -x) * 8 + (7 - bit)) , img_mono.height-y-1)) == 0:     #x,yのピクセル値を取得(モノクロイメージなのでbit)
+                tmp_byte |= 0x01                                                                            #0の場合はそのピクセルのビットを立てる
+                                                                                                            #画像が上下逆に出てくるのが気に入らなかったのでピクセル指定がちょっとアレな感じになっている
     
         if tmp_byte == 0x0A:     #0x0a(LF)を送信すると改行になってしまう模様（要検証）
             tmp_byte = tmp_byte << 1      # 0b00001010 → 0b000101000 と1ビットシフトし誤魔化し処理をする
