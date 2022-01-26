@@ -25,6 +25,7 @@ JUSTIFY_RIGHT   = [ESC,0x61,0x02]   # Justify select (Center)
 # HEADER_ETC = [0x1f,0x11,0x02,0x04]                                            #他のHackしてる人はヘッダ最後にこれを付加している コマンド探してもUS(0x1f)から始まるコマンドが無い
 #                                                                               #Bluetooth系の独自コマンド…？　有線だと無くても動く
 # FOOTER   = [0x1f,0x11,0x08,0x1f,0x11,0x0e,0x1f,0x11,0x07,0x1f,0x11,0x09]      #特殊コマンド…？ これもBluetooth系？　有線だと無くても動いてる。無線化したときに考える
+                                                                                #US(1f)から始まるコマンドは何かのステータスとかのget系っぽい
 
 FEED_FINISH = [ESC,0x64,0x02]              # [ESC d フィード行数]
 
@@ -38,7 +39,7 @@ g_max_width_byte = MAX_WIDTH_80PAPER_BYTE
 
 
 #COM PORT OPEN (今決め打ち)
-com = serial.Serial("COM3",115200)
+com = serial.Serial("COM3",115200,timeout=1.0)
 
 
 #image open
@@ -114,5 +115,16 @@ for i in range(int(data_len/256)+1):    #長尺時バッファ溢れてるっぽ
 com.write(bytes(FEED_FINISH))
 
 # #com.write(bytes(FOOTER)) #ヘッダ同様、有線だと動いてるのでいったん保留
+
+#印刷中はget系コマンドを送っても応答がないので、帰ってくるまで繰り返し
+while True:
+    com.write([0x1F,0x11,0x0E])
+    try :
+        ret = com.read()
+    except: 
+        continue
+    
+    if ret != b'': 
+        break
 
 com.close()
