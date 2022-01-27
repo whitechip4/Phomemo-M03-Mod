@@ -61,6 +61,8 @@ if __name__ == "__main__":
         )
     observer.start()            #Start Observing
 
+    print("target Directory : {}".format(OBSERVE_DIR_PATH))
+    print("observing...")
 
 
     try:
@@ -75,11 +77,12 @@ if __name__ == "__main__":
                 
                 # added file is image -> print and move to ok directory
                 if ext == 'png' or ext == 'jpg' :   # or ext == 'gif' : # now gif file ignore because cannot use image enhancer , etc.
+                    print("Printing...")
                     #print image
                     printer.print_img(trg_path)
                 
                     #move to ok directory
-                    print(OBSERVE_DIR_PATH+"/ok/"+os.path.basename(trg_path))
+                    # print(OBSERVE_DIR_PATH+"/ok/"+os.path.basename(trg_path))
                     shutil.move(trg_path, OBSERVE_DIR_PATH+"/ok/"+os.path.basename(trg_path))
                     print("Print Finished : move to -> " + OBSERVE_DIR_PATH+"/ok/"+os.path.basename(trg_path))
                 
