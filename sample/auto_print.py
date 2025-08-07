@@ -49,7 +49,7 @@ if __name__ == "__main__":
     if not os.path.exists(OBSERVE_DIR_PATH + "/ok"):
         os.makedirs(OBSERVE_DIR_PATH + "/ok")
     if not os.path.exists(OBSERVE_DIR_PATH + "/ng"):
-        os.makedirs(OBSERVE_DIR_PATH + "/ng")
+        os.makedirs(OBSERVE_DIR_PATH + "/ng")        
 
     # printer instance
     printer = Printer(PHOMEMO_COMPORT, Printer.PAPER_WIDTH_80)
@@ -103,8 +103,11 @@ if __name__ == "__main__":
 
                 enhancer = ImageEnhance.Sharpness(proccesed_img)  
                 proccesed_img = enhancer.enhance(3)
+                
+                if not os.path.exists(OBSERVE_DIR_PATH + "/tmp"):
+                    os.makedirs(OBSERVE_DIR_PATH + "/tmp")
                 base, ext = os.path.splitext(trg_path)
-                processed_path = f"{base}_processed{ext}"
+                processed_path = f"/tmp/{base}_processed{ext}"
                 proccesed_img.save(processed_path, quality=100)
             
                 # print image
