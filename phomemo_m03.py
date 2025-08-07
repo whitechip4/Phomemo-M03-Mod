@@ -191,9 +191,10 @@ class Printer:
         
         try:
             # connect to printer
-            for i in range(NUM_RETRIES):
+            for i in range(self.NUM_RETRIES):
                 if self.connect_printer():
                     break
+                print (f"Retrying connection ({i+1}/{self.NUM_RETRIES})...")
 
             # send Header
             cmd_header = [*Printer._INITIALIZE, *Printer._JUSTIFY_CENTER]
