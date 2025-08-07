@@ -94,16 +94,16 @@ if __name__ == "__main__":
                 print("Printing...")
                 
                 # image processing to adjust monochrome color
-                img = Image.open(trg_path)
-                enhancer = ImageEnhance.Contrast(img)  
-                img = enhancer.enhance(1.1)
+                proccesed_img = Image.open(trg_path)
+                enhancer = ImageEnhance.Contrast(proccesed_img)  
+                proccesed_img = enhancer.enhance(1.1)
 
-                enhancer = ImageEnhance.Brightness(img)  
-                img = enhancer.enhance(1.1)
+                enhancer = ImageEnhance.Brightness(proccesed_img)  
+                proccesed_img = enhancer.enhance(1.1)
 
-                enhancer = ImageEnhance.Sharpness(img)  
-                img = enhancer.enhance(3)
-                Image.SAVE(img, trg_path+"_processed", quality=100)
+                enhancer = ImageEnhance.Sharpness(proccesed_img)  
+                proccesed_img = enhancer.enhance(3)
+                proccesed_img.save(trg_path+"_processed", quality=100)
             
                 # print image
                 #if printer.print_img(trg_path):
