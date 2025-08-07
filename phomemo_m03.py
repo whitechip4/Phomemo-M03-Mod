@@ -5,6 +5,10 @@ from PIL import Image
 
 
 class Printer:
+    
+    # Number of retries for connecting to the printer
+    # Printer connection is unstable after disconnection if using bluetooth
+    NUM_RETRIES = 10 
 
     # For Paper Select
     PAPER_WIDTH_58 = 0
@@ -187,7 +191,9 @@ class Printer:
         
         try:
             # connect to printer
-            self.connect_printer()
+            for i in range(NUM_RETRIES):
+                if self.connect_printer():
+                    break
 
             # send Header
             cmd_header = [*Printer._INITIALIZE, *Printer._JUSTIFY_CENTER]
