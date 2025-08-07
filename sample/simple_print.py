@@ -7,17 +7,14 @@ from tkinter import filedialog
 
 PHOMEMO_COMPORT="COM3"  #phomemo comport
 
-
 if __name__ == '__main__':
 
     root = tk.Tk()
     root.withdraw()
     
-    #printer instance
     printer = Printer(PHOMEMO_COMPORT,Printer.PAPER_WIDTH_80)
 
-    #file select
-    image_file = filedialog.askopenfilename(filetypes=[("JPGイメージ", "*.jpg"),("PNGイメージ", "*.png")])
+    image_file = filedialog.askopenfilename(filetypes=[("JPG Image", "*.jpg"),("PNG Image", "*.png")])
 
     print("Target File : {}".format(image_file))
     print("")

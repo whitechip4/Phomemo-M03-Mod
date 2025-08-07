@@ -1,19 +1,14 @@
-#!python
-
-#for Phomemo M03 
+from typing import Tuple, List
 
 import serial
-from PIL import Image,ImageEnhance
-
+from PIL import Image
 
 #For Phomemo M03 with USB connection
 class Printer:
     
-
     #For Paper Select
     PAPER_WIDTH_58 = 0
     PAPER_WIDTH_80 = 1
-    
 
     #CONST
     _MAX_WIDTH_80PAPER_PIX = 576     # for 80mm width paper
@@ -37,7 +32,7 @@ class Printer:
     _GSV0 = [0x1d,0x76,0x30,0x00]        # GS v 0 [m]   ラスタイメージ印刷モード指定
                                         # m=0:等倍 1:横倍、2縦倍、3,縦横倍　とりあえず等倍で良さそう…？
 
-    def __init__(self,target_com,paper_width) :
+    def __init__(self, target_com: str, paper_width: int) -> None:
         """Initialization
 
         Args:
@@ -53,31 +48,33 @@ class Printer:
         else :
             self.paper_width = Printer.PAPER_WIDTH_80
 
-
-
-
-    def connect_printer(self):
+    def connect_printer(self) -> bool:
         """Connect to phomemo Printer
 
         Returns:
-            int : result status (wip)
+            bool : result status 
         """
 
-        retval = 0
         try:
             self.com = serial.Serial(self.trg_comport,115200,timeout=1)
         except:
-            retval = -1
-        return retval
+            print(f"Failed to connect to {self.trg_comport}. Please check the connection.")
+            return False
+        return True
 
-    def disconnect_printer(self):
+    def disconnect_printer(self) -> None:
         """Disconnect from phomemo printer
         """
-        if self.com != None:
-            if self.com.is_open:
-                self.com.close()
+        if self.com == None:
+            print("Printer is not connected.")
+            return
+        if not self.com.is_open:
+            print("Printer is not connected.")
+            return
+        self.com.close()
+        print("Printer disconnected.")
 
-    def send_data(self,data):
+    def send_data(self, data:List[int]) -> None:
         """Send data for printer.
             com port must be opened before use this function.
 
@@ -90,27 +87,23 @@ class Printer:
             else :
                 self.com.write(bytes([data]))
 
-
-    def print_img(self,img_path):
-        """Print image (Test function)
+    def convert_image_to_command_data(self,img_path: str) -> Tuple[List[int], List[int]]:
+        """Convert image to command data for printer
 
         Args:
-            img_path (str): image path 
+            img_path (str): image path
+            paper_width (int): Paper width. Use Value defined in Printer class member
 
         Returns:
-            int : result status (wip)
+            list[int]: command data for printer
         """
-
+        
         #width setting from paper width param of instance
         if self.paper_width == Printer.PAPER_WIDTH_58:
             g_max_width = Printer._MAX_WIDTH_58PAPER_PIX
-            g_max_width_byte = Printer._MAX_WIDTH_58PAPER_BYTE
         else :
             g_max_width = Printer._MAX_WIDTH_80PAPER_PIX
-            g_max_width_byte = Printer._MAX_WIDTH_80PAPER_BYTE
 
-
-        #image proessing
         #image open
         img_test = Image.open(img_path)
 
@@ -121,26 +114,11 @@ class Printer:
         #Image Resize (short side => Printer Max Width)
         height_tmp =  round(img_test.height * g_max_width / img_test.width)
         img_resized = img_test.resize((g_max_width,height_tmp))
-
         ##　メモ： リサイズしない感じにする場合、横幅が8ビットで割り切れないときは面倒くさくなりそうなので、横幅まで余白埋めしてしまう方がよさそう
-
-        #Image processing (Test)
-        enhancer = ImageEnhance.Contrast(img_resized)  
-        img_resized = enhancer.enhance(1.1)
-
-        enhancer = ImageEnhance.Brightness(img_resized)  
-        img_resized = enhancer.enhance(1.1)
-
-        enhancer = ImageEnhance.Sharpness(img_resized)  
-        img_resized = enhancer.enhance(3)
 
         #convert to binary image
         img_mono = img_resized.convert("L")      
         img_mono = img_mono.convert("1")        
-
-        #!image processing
-
-
 
         #prepare image size data command 
         height_tmp_higher = int(img_mono.height / 256)
@@ -169,47 +147,70 @@ class Printer:
                     tmp_byte = tmp_byte << 1      # 0b00001010 → 0b000101000 と1ビットシフトし誤魔化し処理をする
 
                 cmd_data.append(tmp_byte)   #append to image data for send 
-
-        # connect to printer
-        self.connect_printer()
-
-        # send Header
-        cmd_header = [*Printer._INITIALIZE,*Printer._JUSTIFY_CENTER]
-        self.send_data(cmd_header)
-
-        #send image print command
-        self.send_data([*Printer._GSV0,*cmd_imgsize])    #Send print bitimage command and image size
-        
-        #send image data         
-        data_len = len(cmd_data)    
-        for i in range(int(data_len/256)+1):    #長尺時バッファ溢れてるっぽいので、分割送信 256byteずつ
-            if (data_len - 256 * i) > 0:
-                tmp_data = cmd_data[(i*256):((i+1)*256)]
-            else:
-                tmp_data = cmd_data[(i*256):]
-
-            self.send_data(tmp_data)  
+                
+        return cmd_imgsize, cmd_data
 
 
-        #feed when finished
-        self.send_data(Printer._FEED_FINISH)
+    def print_img(self, img_path: str) -> bool:
+        """Print image (Test function)
 
-        #Wait for printing to finish
-        while True:
-            self.com.write([0x1F,0x11,0x0E])    #get command
-            try :
-                ret = self.com.read()   
-            except: 
-                continue
+        Args:
+            img_path (str): image path 
+
+        Returns:
+            bool: result status 
+        """
+    
+        cmd_imgsize,command_data = self.convert_image_to_command_data(img_path)  #convert image to command data
+
+        if len(command_data) == 0:  #if image data is empty, return False
+            return False
+        if len(cmd_imgsize) != 4:  #if image size command is not valid, return False
+            return False
+        try:
+            # connect to printer
+            self.connect_printer()
+
+            # send Header
+            cmd_header = [*Printer._INITIALIZE,*Printer._JUSTIFY_CENTER]
+            self.send_data(cmd_header)
+
+            #send image print command
+            self.send_data([*Printer._GSV0,*cmd_imgsize])    #Send print bitimage command and image size
             
-            if ret != b'':      #if printer status is not busy , some responce returned
-                break
+            #send image data         
+            data_len = len(command_data)    
+            for i in range(int(data_len/256)+1):    #長尺時バッファ溢れてるっぽいので、分割送信 256byteずつ
+                if (data_len - 256 * i) > 0:
+                    tmp_data = command_data[(i*256):((i+1)*256)]
+                else:
+                    tmp_data = command_data[(i*256):]
+
+                self.send_data(tmp_data)  
+
+            #feed when finished
+            self.send_data(Printer._FEED_FINISH)
+
+            #Wait for printing to finish
+            while True:
+                self.com.write([0x1F,0x11,0x0E])    #get command
+                try :
+                    ret = self.com.read()   
+                except: 
+                    continue
+                
+                if ret != b'':      #if printer status is not busy , some responce returned
+                    break
+                
+            self.disconnect_printer()
+            print("Image printed successfully.")
             
-        self.disconnect_printer()
+        except Exception as e:
+            print(f"Error occurred: {e}")
+            self.disconnect_printer()
+            return False
 
-        return 0
-
-
+        return True
 
 
 
