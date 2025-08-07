@@ -3,7 +3,7 @@ from typing import Tuple, List
 import serial
 from PIL import Image
 
-# For Phomemo M03 with USB connection
+
 class Printer:
 
     # For Paper Select
@@ -23,19 +23,17 @@ class Printer:
 
     _INITIALIZE = [_ESC, 0x40]  # [ESC @]
 
-    _JUSTIFY_LEFT = [
-        _ESC,
-        0x61,
-        0x00,
-    ]  # Justify select (Center)     ESC a [x]  (X=0:Left 1:center 2:right)
-    _JUSTIFY_CENTER = [_ESC, 0x61, 0x01]  # Justify select (Center)
-    _JUSTIFY_RIGHT = [_ESC, 0x61, 0x02]  # Justify select (Center)
+    # Justify select (Center) ESC a [x]  (X=0:Left 1:center 2:right)
+    _JUSTIFY_LEFT = [_ESC, 0x61, 0x00,]  
+    _JUSTIFY_CENTER = [_ESC, 0x61, 0x01]  
+    _JUSTIFY_RIGHT = [_ESC, 0x61, 0x02]  
 
     _FEED_FINISH = [_ESC, 0x64, 0x04]  # [ESC d (feed line num)]
 
-    _GSV0 = [0x1D, 0x76, 0x30, 0x00]  # GS v 0 [m]   ラスタイメージ印刷モード指定
+    # GS v 0 [m]   ラスタイメージ印刷モード指定
     # m=0:等倍 1:横倍、2縦倍、3,縦横倍　とりあえず等倍で良さそう…？
-
+    _GSV0 = [0x1D, 0x76, 0x30, 0x00]  
+    
     def __init__(self, target_com: str, paper_width: int) -> None:
         """Initialization
 
@@ -133,14 +131,16 @@ class Printer:
         height_tmp_lower = img_mono.height % 256
         width_byte = int(img_mono.width / 8)
 
+        # 画像サイズ　(x1,x2,y1,y2 として、　x1 + 256 * x2 が横幅みたいな感じ。yも同様  )
+        # そんでこの後に必要となるデータ数は  (x1 + 256 * x2) *8bit * 縦列　という感じ
+        # 1bit = 1pix
         cmd_imgsize = [
             width_byte,
             0x00,
             height_tmp_lower,
             height_tmp_higher,
-        ]  # 画像サイズ　(x1,x2,y1,y2 として、　x1 + 256 * x2 が横幅みたいな感じ。yも同様  )
-        # そんでこの後に必要となるデータ数は  (x1 + 256 * x2) *8bit * 縦列　という感じ
-        # 1bit = 1pix
+        ]  
+
 
         # prepare datas from image for send to printer
         cmd_data = []
@@ -152,25 +152,17 @@ class Printer:
                 tmp_byte = 0
                 for bit in range(8):  # bit
                     tmp_byte = tmp_byte << 1
-                    if (
-                        img_mono.getpixel(
-                            (
-                                ((width_byte - 1 - x) * 8 + (7 - bit)),
-                                img_mono.height - y - 1,
-                            )
-                        )
-                        == 0
-                    ):  # x,yのピクセル値を取得(モノクロイメージなのでbit)
+                    # x,yのピクセル値を取得(モノクロイメージなのでbit)
+                    # 画像が上下逆に出てくるのが気に入らなかったのでピクセル指定がちょっとアレな感じになっている
+                    if (img_mono.getpixel((((width_byte - 1 - x) * 8 + (7 - bit)),img_mono.height - y - 1,)) == 0): 
                         tmp_byte |= 0x01  # 0の場合はそのピクセルのビットを立てる
-                        # 画像が上下逆に出てくるのが気に入らなかったのでピクセル指定がちょっとアレな感じになっている
 
-                if tmp_byte == 0x0A:  # 0x0a(LF)を送信すると改行になってしまう模様（要検証）
-                    tmp_byte = (
-                        tmp_byte << 1
-                    )  # 0b00001010 → 0b000101000 と1ビットシフトし誤魔化し処理をする
-
-                cmd_data.append(tmp_byte)  # append to image data for send
-
+                # 0x0a(LF)を送信すると改行になってしまう模様（要検証）
+                # 0b00001010 → 0b000101000 と1ビットシフトし誤魔化し処理をする
+                if tmp_byte == 0x0A:  
+                    tmp_byte = (tmp_byte << 1)  
+                cmd_data.append(tmp_byte)  
+                
         return cmd_imgsize, cmd_data
 
     def print_img(self, img_path: str) -> bool:
@@ -182,15 +174,17 @@ class Printer:
         Returns:
             bool: result status 
         """
+        # prepare commands data from image
+        cmd_imgsize, command_data = self.convert_image_to_command_data(img_path) 
 
-        cmd_imgsize, command_data = self.convert_image_to_command_data(
-            img_path
-        )  # convert image to command data
-
-        if len(command_data) == 0:  # if image data is empty, return False
+        # Check if image data is empty or command size is invalid
+        if len(command_data) == 0: 
+            print("No image data to print.") 
             return False
-        if len(cmd_imgsize) != 4:  # if image size command is not valid, return False
+        if len(cmd_imgsize) != 4:  
+            print("Invalid image size command.")
             return False
+        
         try:
             # connect to printer
             self.connect_printer()
@@ -199,14 +193,12 @@ class Printer:
             cmd_header = [*Printer._INITIALIZE, *Printer._JUSTIFY_CENTER]
             self.send_data(cmd_header)
 
-            # send image print command
-            self.send_data(
-                [*Printer._GSV0, *cmd_imgsize]
-            )  # Send print bitimage command and image size
+            # Send print bitimage command and image size
+            self.send_data( [*Printer._GSV0, *cmd_imgsize]) 
 
             # send image data
             data_len = len(command_data)
-            for i in range(int(data_len / 256) + 1):  # 長尺時バッファ溢れてるっぽいので、分割送信 256byteずつ
+            for i in range(int(data_len / 256) + 1):  # For long data, buffer may overflow, so send in 256-byte chunks
                 if (data_len - 256 * i) > 0:
                     tmp_data = command_data[(i * 256) : ((i + 1) * 256)]
                 else:
@@ -224,8 +216,9 @@ class Printer:
                     ret = self.com.read()
                 except:
                     continue
-
-                if ret != b"":  # if printer status is not busy , some responce returned
+                
+                # if printer status is not busy , some responce returned
+                if ret != b"": 
                     break
 
             self.disconnect_printer()
