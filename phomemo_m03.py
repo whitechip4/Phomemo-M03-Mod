@@ -1,4 +1,5 @@
 from typing import Tuple, List
+import time
 
 import serial
 from PIL import Image
@@ -67,6 +68,9 @@ class Printer:
             print(
                 f"Failed to connect to {self.trg_comport}. Please check the connection."
             )
+            if self.com:
+                self.com.close()
+            self.com = None
             return False
         return True
 
@@ -191,10 +195,16 @@ class Printer:
         
         try:
             # connect to printer
+            connected = False
             for i in range(self.NUM_RETRIES):
                 if self.connect_printer():
+                    connected = True
                     break
-                print (f"Retrying connection ({i+1}/{self.NUM_RETRIES})...")
+                print(f"Retrying connection ({i+1}/{self.NUM_RETRIES})...")
+                time.sleep(1)  # Wait 1 second between retries
+            if not connected or self.com is None or not self.com.is_open:
+                print("Failed to connect to printer after retries.")
+                return False
 
             # send Header
             cmd_header = [*Printer._INITIALIZE, *Printer._JUSTIFY_CENTER]
