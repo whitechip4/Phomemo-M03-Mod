@@ -16,7 +16,7 @@ from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 
 #Dir Path
-OBSERVE_DIR_PATH = "D:/OneDrive/phomemo_print"
+OBSERVE_DIR_PATH = "./phomemo_print_queue_folder"
 
 PHOMEMO_COMPORT = "COM3"
 
