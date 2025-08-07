@@ -145,6 +145,6 @@ if __name__ == "__main__":
         observer.join()
 
     finally:
-        # Clean up processed images
-        if os.path.exists(processed_path):
-            os.remove(processed_path)
+        # Clean up temporary directory
+        if os.path.exists(processed_dir):
+            os.rmdir(processed_dir, ignore_errors=True)  # remove temporary directory
