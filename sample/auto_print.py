@@ -15,6 +15,10 @@ import shutil
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 
+from PIL import Image,ImageEnhance
+import sys
+
+
 # Dir Path
 OBSERVE_DIR_PATH = "./phomemo_print_queue_folder"
 
@@ -71,27 +75,9 @@ if __name__ == "__main__":
                 ext = os.path.splitext(trg_path)[1][1:]
 
                 # added file is image -> print and move to ok directory
-                if (
-                    ext == "png" or ext == "jpg"
-                ):  # or ext == 'gif' : # now gif file ignore because cannot use image enhancer , etc.
-                    print("Printing...")
-                    # print image
-                    printer.print_img(trg_path)
-
-                    # move to ok directory
-                    # print(OBSERVE_DIR_PATH+"/ok/"+os.path.basename(trg_path))
-                    shutil.move(
-                        trg_path, OBSERVE_DIR_PATH + "/ok/" + os.path.basename(trg_path)
-                    )
-                    print(
-                        "Print Finished : move to -> "
-                        + OBSERVE_DIR_PATH
-                        + "/ok/"
-                        + os.path.basename(trg_path)
-                    )
-
-                # added file is not image -> move to ng directory
-                else:
+                # now gif file ignore because cannot use image enhancer , etc.
+                if not ext == "png" and not ext == "jpg":
+                    # move to ng directory if image is not png or jpg
                     shutil.move(
                         trg_path, OBSERVE_DIR_PATH + "/ng/" + os.path.basename(trg_path)
                     )
@@ -102,7 +88,49 @@ if __name__ == "__main__":
                         + "/ng/"
                         + os.path.basename(trg_path)
                     )
-                print("")
+                    print("")
+                    continue
+                    
+                print("Printing...")
+                
+                # image processing to adjust monochrome color
+                img = Image.open(trg_path)
+                enhancer = ImageEnhance.Contrast(img)  
+                img = enhancer.enhance(1.1)
+
+                enhancer = ImageEnhance.Brightness(img)  
+                img = enhancer.enhance(1.1)
+
+                enhancer = ImageEnhance.Sharpness(img)  
+                img = enhancer.enhance(3)
+                Image.SAVE(img, trg_path+"_processed", quality=100)
+            
+                # print image
+                #if printer.print_img(trg_path):
+                if not printer.print_img(trg_path+"_processed"):
+                    print("Print Failed : " + trg_path)
+                    shutil.move(
+                        trg_path, OBSERVE_DIR_PATH + "/ng/" + os.path.basename(trg_path)
+                    )
+                    print(
+                        "Move to -> "
+                        + OBSERVE_DIR_PATH
+                        + "/ng/"
+                        + os.path.basename(trg_path)
+                    )
+                    continue
+
+                # move to ok directory
+                # print(OBSERVE_DIR_PATH+"/ok/"+os.path.basename(trg_path))
+                shutil.move(
+                    trg_path, OBSERVE_DIR_PATH + "/ok/" + os.path.basename(trg_path)
+                )
+                print(
+                    "Print Finished : move to -> "
+                    + OBSERVE_DIR_PATH
+                    + "/ok/"
+                    + os.path.basename(trg_path)
+                )
 
     except KeyboardInterrupt:  # for abort (CTRL + C)
         observer.stop()
