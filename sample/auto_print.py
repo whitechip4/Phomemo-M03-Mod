@@ -34,6 +34,10 @@ class HandlerForWatchdog(LoggingEventHandler):
         global img_queue
         global img_num
 
+        # Ignore directories
+        if event.is_directory:
+            return
+
         print("File Added" + event.src_path)
         ext = os.path.splitext(event.src_path)[1][1:]
         if ext == "TMP":  # ignore OneDrive tmp file(temp)
