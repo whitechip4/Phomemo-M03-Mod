@@ -63,7 +63,7 @@ class Printer:
 
         try:
             self.com = serial.Serial(self.trg_comport, 115200, timeout=1)
-        except:
+        except Exception as _e:
             print(
                 f"Failed to connect to {self.trg_comport}. Please check the connection."
             )
