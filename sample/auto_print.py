@@ -104,10 +104,13 @@ if __name__ == "__main__":
                 enhancer = ImageEnhance.Sharpness(proccesed_img)  
                 proccesed_img = enhancer.enhance(3)
                 
-                if not os.path.exists(OBSERVE_DIR_PATH + "/tmp"):
-                    os.makedirs(OBSERVE_DIR_PATH + "/tmp")
-                base, ext = os.path.splitext(trg_path)
-                processed_path = f"/tmp/{base}_processed{ext}"
+                # save temporary directory to processed image
+                base = os.path.splitext(os.path.basename(trg_path))[0]
+                ext = os.path.splitext(trg_path)[1]
+                processed_dir = os.path.join(OBSERVE_DIR_PATH, "tmp")
+                if not os.path.exists(processed_dir):
+                    os.makedirs(processed_dir)
+                processed_path = os.path.join(processed_dir, f"{base}_processed{ext}")
                 proccesed_img.save(processed_path, quality=100)
             
                 # print image
@@ -140,3 +143,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:  # for abort (CTRL + C)
         observer.stop()
         observer.join()
+
+    finally:
+        # Clean up processed images
+        if os.path.exists(processed_path):
+            os.remove(processed_path)
