@@ -115,7 +115,13 @@ if __name__ == "__main__":
             
                 # print image
                 #if printer.print_img(trg_path):
-                if not printer.print_img(processed_path):
+                ret =  printer.print_img(processed_path)
+                
+                #clean up processed image
+                if os.path.exists(processed_path):
+                    os.remove(processed_path)
+                
+                if not ret:
                     print("Print Failed : " + trg_path)
                     shutil.move(
                         trg_path, OBSERVE_DIR_PATH + "/ng/" + os.path.basename(trg_path)
@@ -144,7 +150,3 @@ if __name__ == "__main__":
         observer.stop()
         observer.join()
 
-    finally:
-        # Clean up temporary directory and all its contents
-        if os.path.exists(processed_dir):
-            shutil.rmtree(processed_dir, ignore_errors=True)
