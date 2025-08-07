@@ -145,6 +145,6 @@ if __name__ == "__main__":
         observer.join()
 
     finally:
-        # Clean up temporary directory
+        # Clean up temporary directory and all its contents
         if os.path.exists(processed_dir):
-            os.rmdir(processed_dir, ignore_errors=True)  # remove temporary directory
+            shutil.rmtree(processed_dir, ignore_errors=True)
