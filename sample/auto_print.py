@@ -103,11 +103,13 @@ if __name__ == "__main__":
 
                 enhancer = ImageEnhance.Sharpness(proccesed_img)  
                 proccesed_img = enhancer.enhance(3)
-                proccesed_img.save(trg_path+"_processed", quality=100)
+                base, ext = os.path.splitext(trg_path)
+                processed_path = f"{base}_processed{ext}"
+                proccesed_img.save(processed_path, quality=100)
             
                 # print image
                 #if printer.print_img(trg_path):
-                if not printer.print_img(trg_path+"_processed"):
+                if not printer.print_img(processed_path):
                     print("Print Failed : " + trg_path)
                     shutil.move(
                         trg_path, OBSERVE_DIR_PATH + "/ng/" + os.path.basename(trg_path)
