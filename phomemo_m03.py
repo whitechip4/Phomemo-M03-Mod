@@ -1,5 +1,6 @@
 from typing import Tuple, List
 import time
+import threading
 
 import serial
 from PIL import Image
@@ -55,6 +56,47 @@ class Printer:
         else:
             self.paper_width = Printer.PAPER_WIDTH_80
 
+    def _close_with_timeout(
+        self, flush_timeout: float = 2.0, close_timeout: float = 1.0
+    ) -> bool:
+        """
+        Flush and close the serial port with hard timeouts.
+        Returns True if both completed, False if either timed out.
+        """
+        if self.com is None or not self.com.is_open:
+            return False
+
+        result = {"flushed": False, "closed": False, "exc": None}
+
+        def do_cleanup():
+            try:
+                self.com.flush()
+                result["flushed"] = True
+            except Exception as e:
+                result["exc"] = ("flush", e)
+                return  # skip close if flush failed hard
+
+            try:
+                self.com.close()
+                result["closed"] = True
+            except Exception as e:
+                result["exc"] = ("close", e)
+
+        t = threading.Thread(target=do_cleanup, daemon=True)
+        t.start()
+        t.join(flush_timeout + close_timeout)
+
+        if t.is_alive():
+            # Cleanup is still blocking -> connection wedged
+            return False
+
+        if result["exc"]:
+            op, exc = result["exc"]
+            print(f"Cleanup {op} failed: {exc}")
+            return False
+
+        return result["flushed"] and result["closed"]
+
     def connect_printer(self) -> bool:
         """Connect to phomemo Printer
 
@@ -63,7 +105,9 @@ class Printer:
         """
 
         try:
-            self.com = serial.Serial(self.trg_comport, 115200, timeout=1)
+            self.com = serial.Serial(
+                self.trg_comport, 115200, timeout=1, write_timeout=5
+            )
         except Exception as _e:
             print(
                 f"Failed to connect to {self.trg_comport}. Please check the connection."
@@ -77,13 +121,18 @@ class Printer:
     def disconnect_printer(self) -> None:
         """Disconnect from phomemo printer
         """
-        if self.com == None:
+        if self.com is None:
             print("Printer is not connected.")
             return
         if not self.com.is_open:
             print("Printer is not connected.")
             return
-        self.com.close()
+
+        if not self._close_with_timeout():
+            raise IOError(
+                "Printer disconnect: cleanup timed out, print may be incomplete"
+            )
+
         print("Printer disconnected.")
 
     def send_data(self, data: List[int]) -> None:
@@ -227,14 +276,13 @@ class Printer:
             self.send_data(Printer._FEED_FINISH)
 
             # Wait for printing to finish
-            while True:
+            deadline = time.time() + 15
+            while time.time() < deadline:
                 self.com.write([0x1F, 0x11, 0x0E])  # get command
                 try:
                     ret = self.com.read()
-                except:
-                    continue
-                
-                # if printer status is not busy , some responce returned
+                except Exception:
+                    break  # socket died — stop polling, go straight to close
                 if ret != b"": 
                     break
 
